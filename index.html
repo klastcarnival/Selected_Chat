@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JSON 인덱스 선택 추출 도구</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; line-height: 1.6; color: #333; background-color: #f8f9fa; margin: 0; padding: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; background: #fff; padding: 25px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+        h1, h2, h3 { color: #212529; border-bottom: 2px solid #e9ecef; padding-bottom: 10px; margin-top: 2rem; margin-bottom: 1rem; }
+        h1 { font-size: 2rem; } h2 { font-size: 1.75rem; } h3 { font-size: 1.5rem; }
+        button, input[type="file"]::file-selector-button { border: none; padding: 10px 15px; border-radius: 5px; cursor: pointer; font-size: 1rem; font-weight: 500; transition: background-color 0.2s ease; }
+        .btn-primary { background-color: #007bff; color: white; }
+        .btn-primary:hover { background-color: #0056b3; }
+        .btn-secondary { background-color: #6c757d; color: white; }
+        .btn-secondary:hover { background-color: #5a6268; }
+        .disabled-button { background-color: #adb5bd; cursor: not-allowed; }
+        #uploadedFileList { margin-top: 15px; padding: 15px; background-color: #f1f3f5; border-radius: 5px; }
+        #uploadedFileList div { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #dee2e6; }
+        #uploadedFileList div:last-child { border-bottom: none; }
+        #uploadedFileList button { background-color: #dc3545; color: white; padding: 5px 10px; font-size: 0.8rem; }
+        #processButton { margin-top: 15px; }
+        #status { font-weight: bold; color: #007bff; margin-top: 10px; }
+        #comparisonResult { margin-top: 10px; padding: 15px; background-color: #e6f7ff; border-left: 5px solid #007bff; }
+        
+        .action-buttons { margin-bottom: 1rem; display: flex; gap: 10px; }
+        #selectionContainer, #searchResults { display: flex; flex-wrap: nowrap; gap: 16px; padding: 10px 0; overflow-x: auto; }
+        .selection-column { flex: 1; min-width: 280px; max-width: 320px; border: 1px solid #dee2e6; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.07); display: flex; flex-direction: column; background-color: #fff; }
+        .column-header { padding: 12px 16px; border-bottom: 1px solid #e9ecef; }
+        .column-header h4 { margin: 0; font-size: 1rem; }
+        .column-header p { margin: 4px 0 0; font-size: 0.9rem; color: #6c757d; }
+        .column-controls { display: flex; gap: 8px; padding: 12px 16px; border-bottom: 1px solid #e9ecef; }
+        .column-controls button { flex: 1; }
+        .column-content { padding: 12px 16px; overflow-y: auto; max-height: 400px; }
+        
+        .index-item { margin-bottom: 10px; }
+        .item-header { display: flex; align-items: flex-start; }
+        .item-header input[type="checkbox"] { margin-top: 4px; margin-right: 10px; flex-shrink: 0; }
+        .item-label { cursor: pointer; flex-grow: 1; }
+        .item-label .preview { color: #495057; font-size: 0.9rem; display: block; margin-top: 2px; }
+        .index-detail { display: none; margin-top: 8px; padding: 10px; background-color: #f1f3f5; border-radius: 4px; font-size: 0.9rem; white-space: pre-wrap; word-break: break-all; }
+        
+        #searchControls { display: flex; gap: 10px; margin-bottom: 15px; }
+        #searchInput { flex-grow: 1; padding: 10px; border: 1px solid #ced4da; border-radius: 5px; font-size: 1rem; }
+        #searchStatus { font-weight: bold; margin-bottom: 1rem; }
+        hr { border: 0; border-top: 1px solid #e9ecef; margin: 2rem 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>JSON 인덱스 선택 추출 도구</h1>
+
+        <section id="uploadSection">
+            <h2>1. JSON 파일 업로드 (최대 3개)</h2>
+            <p>※ RisuAI 채팅 파일을 여러 개 선택할 수 있습니다. (최대 3개)</p>
+            <input type="file" id="fileInput" multiple accept=".json">
+            <div id="uploadedFileList">현재 로드된 파일 없음</div>
+            <button id="processButton" class="btn-primary" onclick="processFiles()" disabled>추출 목록 생성 (총 <span id="fileCount">0</span>개 파일)</button>
+            <div id="status"></div>
+        </section>
+
+        <hr>
+
+        <section id="comparisonResultSection" style="display: none;">
+            <h2>2. 데이터 비교 결과</h2>
+            <div id="comparisonResult"></div>
+        </section>
+
+        <section id="selectionSection" style="display: none;">
+            <h3>3. 추출할 인덱스 선택 (통합/개별)</h3>
+            <div class="action-buttons">
+                <button class="btn-secondary" onclick="toggleAllDetails('selectionContainer', true)">전체 인덱스 펼치기</button>
+                <button class="btn-secondary" onclick="toggleAllDetails('selectionContainer', false)">전체 인덱스 접기</button>
+            </div>
+            <div id="selectionContainer"></div>
+        </section>
+
+        <section id="searchSection" style="display: none;">
+            <h3>3.5. 키워드 검색 및 선택</h3>
+            <div id="searchControls">
+                <input type="text" id="searchInput" placeholder="검색어를 입력하세요 (두 글자 이상)">
+                <button class="btn-primary" onclick="searchAndDisplayResults()">검색</button>
+            </div>
+            <div id="searchStatus"></div>
+            <div id="searchResults"></div>
+        </section>
+        
+        <section id="downloadSection" style="display: none;">
+            <hr>
+            <h2>4. 추출 및 다운로드</h2>
+            <button class="btn-primary" onclick="extractAndDownload()">선택 항목 다운로드</button>
+        </section>
+
+    </div>
+
+    <script>
+        let fileData = []; 
+        let unifiedLength = 0; 
+
+        function simpleHash(str) { let hash = 5381; for (let i = 0; i < str.length; i++) { hash = (hash * 33) ^ str.charCodeAt(i); } return hash >>> 0; }
+        
+        async function handleFileSelect(event) {
+            const files = event.target.files;
+            if (files.length === 0) return;
+            document.getElementById('status').textContent = `파일 처리 준비 중...`;
+            for (const file of Array.from(files)) {
+                if (fileData.length >= 3) { alert(`최대 3개 파일만 로드 가능합니다.`); continue; }
+                if (fileData.some(f => f.name === file.name)) continue;
+                document.getElementById('status').textContent = `파일 '${file.name}' 읽는 중...`;
+                try {
+                    const data = await new Promise((resolve, reject) => {
+                        const reader = new FileReader();
+                        reader.onload = e => resolve(e.target.result);
+                        reader.onerror = e => reject(e);
+                        reader.readAsText(file);
+                    });
+                    const fullObject = JSON.parse(data);
+                    const dataArray = fullObject.data?.message;
+                    if (!Array.isArray(dataArray)) throw new Error("JSON이 'data.message' 배열을 포함한 RisuAI 채팅 형식이 아닙니다.");
+                    dataArray.sort((a, b) => (a.time || 0) - (b.time || 0));
+                    dataArray.forEach(item => { if (item) item._hash = simpleHash(JSON.stringify(item)); });
+                    fileData.push({ name: file.name, data: dataArray });
+                } catch (error) {
+                    alert(`'${file.name}' 처리 오류: ${error.message}`);
+                }
+            }
+            updateFileListUI();
+            event.target.value = '';
+        }
+        document.getElementById('fileInput').addEventListener('change', handleFileSelect);
+        
+        function updateFileListUI() {
+            const listDiv = document.getElementById('uploadedFileList');
+            const processButton = document.getElementById('processButton');
+            const fileCountSpan = document.getElementById('fileCount');
+            if (fileData.length === 0) {
+                listDiv.innerHTML = '현재 로드된 파일 없음';
+                processButton.disabled = true;
+                processButton.classList.add('disabled-button');
+                document.getElementById('status').textContent = '';
+            } else {
+                listDiv.innerHTML = fileData.map((f, i) =>
+                    `<div><span>${i + 1}. ${f.name} (항목: ${f.data.length})</span><button onclick="removeFile(${i})">삭제</button></div>`
+                ).join('');
+                processButton.disabled = false;
+                processButton.classList.remove('disabled-button');
+                document.getElementById('status').textContent = `${fileData.length}개 파일 준비 완료.`;
+            }
+            fileCountSpan.textContent = fileData.length;
+            ['comparisonResultSection', 'selectionSection', 'searchSection', 'downloadSection'].forEach(id => document.getElementById(id).style.display = 'none');
+        }
+
+        function removeFile(index) {
+            if (confirm(`'${fileData[index].name}'을(를) 제거하시겠습니까?`)) {
+                fileData.splice(index, 1);
+                updateFileListUI();
+            }
+        }
+        
+        function findUnifiedLength(dataArrays) {
+            if (dataArrays.length <= 1) return 0;
+            const minLength = Math.min(...dataArrays.map(arr => arr.length));
+            let unifiedLen = 0;
+            for (let i = 0; i < minLength; i++) {
+                if (dataArrays.slice(1).every(arr => arr[i]?._hash === dataArrays[0][i]?._hash)) unifiedLen++;
+                else break;
+            }
+            return unifiedLen;
+        }
+
+        function processFiles() {
+            if (fileData.length === 0) return;
+            document.getElementById('status').textContent = '데이터 비교 및 목록 생성 중...';
+            setTimeout(() => {
+                unifiedLength = findUnifiedLength(fileData.map(f => f.data));
+                displayComparisonResult();
+                generateIndexSelection();
+                document.getElementById('status').textContent = '인덱스 목록 생성 완료.';
+                ['comparisonResultSection', 'selectionSection', 'searchSection', 'downloadSection'].forEach(id => document.getElementById(id).style.display = 'block');
+            }, 50);
+        }
+
+        function displayComparisonResult() {
+            const resultDiv = document.getElementById('comparisonResult');
+            let html = '';
+            if (fileData.length === 1) { 
+                html += `✅ 단일 파일 로드 완료. 전체 ${fileData[0].data.length}개 항목이 표시됩니다.`;
+            } else if (unifiedLength > 0) {
+                html += `✅ 1번 ~ ${unifiedLength}번 인덱스까지 내용이 모든 파일에서 동일합니다.`;
+            } else {
+                html += '⚠️ 공통된 인덱스 구간이 없습니다. 모든 내용이 파일별로 표시됩니다.';
+            }
+            resultDiv.innerHTML = html;
+        }
+
+        function generateIndexSelection() {
+            const container = document.getElementById('selectionContainer');
+            container.innerHTML = ''; 
+            let finalHtml = '';
+            if (unifiedLength > 0) {
+                const columnId = "unifiedColumn";
+                const itemsHtml = fileData[0].data.slice(0, unifiedLength).map((item, i) => createIndexItemHtml('unified', i, 0, item, columnId)).join('');
+                finalHtml += createColumnHtml('통합 인덱스', `1 - ${unifiedLength}`, columnId, itemsHtml);
+            }
+            fileData.forEach((file, fileIdx) => {
+                const individualItems = file.data.slice(unifiedLength);
+                if (individualItems.length > 0) {
+                    const columnId = `individualColumn-${fileIdx}`;
+                    const title = fileData.length === 1 ? `전체 인덱스` : `[${file.name.replace(/\.json$/i, '')}] 개별 인덱스`;
+                    const range = fileData.length === 1 ? `1 - ${file.data.length}` : `${unifiedLength + 1} - ${file.data.length}`;
+                    const itemsHtml = individualItems.map((item, i) => createIndexItemHtml('individual', unifiedLength + i, fileIdx, item, columnId)).join('');
+                    finalHtml += createColumnHtml(title, range, columnId, itemsHtml);
+                }
+            });
+            container.innerHTML = finalHtml;
+        }
+
+        function createColumnHtml(title, range, columnId, content) {
+            return `<div class="selection-column">
+                        <div class="column-header">
+                            <h4>${title}</h4>
+                            <p>${range}</p>
+                        </div>
+                        <div class="column-controls">
+                            <button class="btn-primary" onclick="toggleColumnSelection('${columnId}', true)">전체 선택</button>
+                            <button class="btn-secondary" onclick="toggleColumnSelection('${columnId}', false)">전체 해제</button>
+                        </div>
+                        <div class="column-content">${content}</div>
+                    </div>`;
+        }
+        
+        // ================== [UI 수정] 클릭 동작 분리를 위해 label을 div로 변경 ==================
+        function createIndexItemHtml(type, itemIndex, fileIndex, item, columnId) {
+            const index = itemIndex + 1;
+            const content = (item.data || '').trim().replace(/\n/g, ' ').substring(0, 40) + '...';
+            const fullContent = `Role: ${item.role || 'N/A'}\nData:\n${item.data || '[내용 없음]'}`;
+            return `<div class="index-item">
+                        <div class="item-header">
+                            <input type="checkbox" id="check-${fileIndex}-${itemIndex}" data-type="${type}" data-item-index="${itemIndex}" data-file-index="${fileIndex}" data-column-id="${columnId}">
+                            <div class="item-label" onclick="toggleDetail(this)">
+                                <strong>${type === 'unified' ? '[통합] ' : ''}${index} index</strong>
+                                <span class="preview">${content}</span>
+                            </div>
+                        </div>
+                        <div class="index-detail">${fullContent.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
+                    </div>`;
+        }
+        // =====================================================================================
+
+        function toggleAllDetails(containerId, shouldExpand) {
+            const container = document.getElementById(containerId);
+            if(container) {
+                container.querySelectorAll('.index-detail').forEach(detail => {
+                    detail.style.display = shouldExpand ? 'block' : 'none';
+                });
+            }
+        }
+
+        function toggleColumnSelection(columnId, select) {
+            document.querySelectorAll(`input[data-column-id="${columnId}"]`).forEach(cb => {
+                cb.checked = select;
+            });
+        }
+        
+        function toggleDetail(element) {
+            const detailDiv = element.closest('.index-item').querySelector('.index-detail');
+            if (detailDiv) detailDiv.style.display = detailDiv.style.display === 'block' ? 'none' : 'block';
+        }
+
+        function searchAndDisplayResults() {
+            document.getElementById('searchStatus').textContent = `🔍 검색 중...`;
+            setTimeout(() => {
+                const searchTerm = document.getElementById('searchInput').value.trim().toLowerCase();
+                const resultsDiv = document.getElementById('searchResults');
+                const statusDiv = document.getElementById('searchStatus');
+                resultsDiv.innerHTML = ''; 
+                statusDiv.innerHTML = ''; 
+                if (searchTerm.length < 2) { 
+                    statusDiv.textContent = '⚠️ 검색어는 두 글자 이상이어야 합니다.';
+                    return;
+                }
+                let totalMatches = 0;
+                let searchResultsData = [];
+                fileData.forEach((file, fileIdx) => {
+                    let matchingItems = [];
+                    file.data.forEach((item, itemIdx) => {
+                        const searchTarget = `${item.data || ''} ${item.role || ''}`.toLowerCase();
+                        if (item && searchTarget.includes(searchTerm)) {
+                            matchingItems.push({ item: item, itemIndex: itemIdx });
+                        }
+                    });
+                    if (matchingItems.length > 0) {
+                        searchResultsData.push({
+                            fileName: file.name,
+                            fileIndex: fileIdx,
+                            matches: matchingItems.length,
+                            items: matchingItems
+                        });
+                        totalMatches += matchingItems.length;
+                    }
+                });
+
+                if (totalMatches > 0) {
+                    statusDiv.innerHTML = `✅ 총 ${totalMatches}개의 검색 결과를 발견했습니다.
+                                         <div class="action-buttons">
+                                             <button class="btn-secondary" onclick="toggleAllDetails('searchResults', true)">전체 인덱스 펼치기</button>
+                                             <button class="btn-secondary" onclick="toggleAllDetails('searchResults', false)">전체 인덱스 접기</button>
+                                         </div>`;
+                    
+                    let finalHtml = '';
+                    searchResultsData.forEach((group) => {
+                        const columnId = `searchColumn-${group.fileIndex}`;
+                        const itemsHtml = group.items.map(match => createIndexItemHtml('search', match.itemIndex, group.fileIndex, match.item, columnId)).join('');
+                        finalHtml += createColumnHtml(`[${group.fileName.replace(/\.json$/i, '')}]`, `${group.matches}개 일치`, columnId, itemsHtml);
+                    });
+                    resultsDiv.innerHTML = finalHtml;
+                } else {
+                    statusDiv.textContent = `❌ '${searchTerm}'에 대한 검색 결과가 없습니다.`;
+                }
+            }, 50);
+        }
+
+        function extractAndDownload() {
+            const allSelected = document.querySelectorAll('input[type="checkbox"]:checked');
+            if (allSelected.length === 0) { alert('추출할 인덱스를 선택해주세요.'); return; }
+            let extractedData = [];
+            const hashSet = new Set();
+            allSelected.forEach(checkbox => {
+                const { fileIndex, itemIndex } = checkbox.dataset;
+                const item = fileData[parseInt(fileIndex)]?.data[parseInt(itemIndex)];
+                if (item && !hashSet.has(item._hash)) {
+                    const finalItem = { ...item };
+                    delete finalItem._hash;
+                    extractedData.push(finalItem);
+                    hashSet.add(item._hash);
+                }
+            });
+            if (extractedData.length === 0) { alert('유효한 추출 항목이 없습니다.'); return; }
+            extractedData.sort((a, b) => (a.time || 0) - (b.time || 0));
+            const finalOutputObject = { type: "risuChat", ver: 2, data: { message: extractedData, note: "", name: "Extracted Chat", localLore: [], fmIndex: -1, id: `extracted-${Date.now()}`, scriptstate: {}, lastMemory: "NewChat" }, folders: [] };
+            try {
+                const jsonContent = JSON.stringify(finalOutputObject, null, 2);
+                const blob = new Blob([jsonContent], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'extracted_ai_chat.json';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                alert(`✅ ${extractedData.length}개 항목이 포함된 파일이 다운로드되었습니다.`);
+            } catch (e) {
+                alert(`⚠️ 다운로드 오류: ${e.message}`);
+            }
+        }
+    </script>
+</body>
+</html>
