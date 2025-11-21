@@ -3,59 +3,179 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>JSON 인덱스 선택 추출 도구</title>
+    <title>JSON 인덱스 선택 추출 도구 (Selected_Chat)</title>
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; line-height: 1.6; color: #333; background-color: #f8f9fa; margin: 0; padding: 20px; }
-        .container { max-width: 1200px; margin: 0 auto; background: #fff; padding: 25px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
-        h1, h2, h3 { color: #212529; border-bottom: 2px solid #e9ecef; padding-bottom: 10px; margin-top: 2rem; margin-bottom: 1rem; }
-        h1 { font-size: 2rem; } h2 { font-size: 1.75rem; } h3 { font-size: 1.5rem; }
-        button, input[type="file"]::file-selector-button { border: none; padding: 10px 15px; border-radius: 5px; cursor: pointer; font-size: 1rem; font-weight: 500; transition: background-color 0.2s ease; }
+        /* ==================== 공통 및 모바일 우선 스타일 ==================== */
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; 
+            line-height: 1.6; 
+            color: #333; 
+            background-color: #f8f9fa; 
+            margin: 0; 
+            padding: 15px; /* 모바일에서 좁게 설정 */
+        }
+        .container { 
+            max-width: 1200px; 
+            margin: 0 auto; 
+            background: #fff; 
+            padding: 15px; /* 모바일에서 내부 패딩 감소 */
+            border-radius: 8px; 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08); 
+        }
+        h1, h2, h3 { 
+            color: #212529; 
+            border-bottom: 2px solid #e9ecef; 
+            padding-bottom: 8px; 
+            margin-top: 1.5rem; 
+            margin-bottom: 0.8rem; 
+        }
+        h1 { font-size: 1.75rem; } 
+        h2 { font-size: 1.5rem; } 
+        h3 { font-size: 1.25rem; }
+        
+        /* 버튼 및 입력 필드 터치 영역 확대 */
+        button, input[type="file"]::file-selector-button { 
+            border: none; 
+            padding: 12px 15px; /* 터치 영역 확대 */
+            border-radius: 5px; 
+            cursor: pointer; 
+            font-size: 1rem; 
+            font-weight: 500; 
+            transition: background-color 0.2s ease; 
+            width: 100%; /* 모바일에서 기본적으로 100% 폭 */
+            box-sizing: border-box;
+        }
         .btn-primary { background-color: #007bff; color: white; }
         .btn-primary:hover { background-color: #0056b3; }
         .btn-secondary { background-color: #6c757d; color: white; }
         .btn-secondary:hover { background-color: #5a6268; }
         .disabled-button { background-color: #adb5bd; cursor: not-allowed; }
-        #uploadedFileList { margin-top: 15px; padding: 15px; background-color: #f1f3f5; border-radius: 5px; }
-        #uploadedFileList div { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #dee2e6; }
-        #uploadedFileList div:last-child { border-bottom: none; }
-        #uploadedFileList button { background-color: #dc3545; color: white; padding: 5px 10px; font-size: 0.8rem; }
-        #processButton { margin-top: 15px; }
-        #status { font-weight: bold; color: #007bff; margin-top: 10px; }
-        #comparisonResult { margin-top: 10px; padding: 15px; background-color: #e6f7ff; border-left: 5px solid #007bff; }
         
-        .action-buttons { margin-bottom: 1rem; display: flex; gap: 10px; }
-        #selectionContainer, #searchResults { display: flex; flex-wrap: nowrap; gap: 16px; padding: 10px 0; overflow-x: auto; }
-        .selection-column { flex: 1; min-width: 280px; max-width: 320px; border: 1px solid #dee2e6; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.07); display: flex; flex-direction: column; background-color: #fff; }
+        #uploadedFileList { margin-top: 15px; padding: 10px; background-color: #f1f3f5; border-radius: 5px; }
+        #uploadedFileList div { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #dee2e6; font-size: 0.9rem; }
+        #uploadedFileList div:last-child { border-bottom: none; }
+        #uploadedFileList button { background-color: #dc3545; color: white; padding: 5px 8px; font-size: 0.8rem; width: auto; }
+        #processButton { margin-top: 15px; }
+        #status { font-weight: bold; color: #007bff; margin-top: 10px; font-size: 0.9rem; }
+        #comparisonResult { margin-top: 10px; padding: 15px; background-color: #e6f7ff; border-left: 5px solid #007bff; font-size: 0.9rem; }
+        
+        /* 3. 인덱스 선택 섹션 (모바일 - 세로 스택) */
+        .action-buttons { margin-bottom: 1rem; display: flex; gap: 10px; flex-wrap: wrap; } /* 모바일에서 버튼이 줄 바꿈되도록 설정 */
+        .action-buttons button { width: calc(50% - 5px); }
+        
+        #selectionContainer, #searchResults { 
+            display: block; /* 모바일에서 세로로 쌓기 */
+            padding: 0; 
+            gap: 0;
+            overflow-x: hidden;
+        }
+        
+        .selection-column { 
+            width: 100%; /* 모바일에서 전체 폭 사용 */
+            max-width: none;
+            min-width: 0;
+            border: 1px solid #dee2e6; 
+            border-radius: 8px; 
+            box-shadow: none; /* 모바일에서 그림자 제거 */
+            display: flex; 
+            flex-direction: column; 
+            background-color: #fff; 
+            margin-bottom: 15px; /* 쌓이는 열 간격 */
+        }
         .column-header { padding: 12px 16px; border-bottom: 1px solid #e9ecef; }
-        .column-header h4 { margin: 0; font-size: 1rem; }
-        .column-header p { margin: 4px 0 0; font-size: 0.9rem; color: #6c757d; }
+        .column-header h4 { margin: 0; font-size: 1.1rem; }
+        .column-header p { margin: 4px 0 0; font-size: 0.85rem; color: #6c757d; }
         .column-controls { display: flex; gap: 8px; padding: 12px 16px; border-bottom: 1px solid #e9ecef; }
-        .column-controls button { flex: 1; }
-        .column-content { padding: 12px 16px; overflow-y: auto; max-height: 400px; }
+        .column-controls button { flex: 1; padding: 8px 10px; font-size: 0.9rem; width: auto; } /* 버튼 크기 조정 */
+        .column-content { padding: 12px 16px; overflow-y: auto; max-height: 300px; } /* 모바일에서 최대 높이 조정 */
         
         .index-item { margin-bottom: 10px; }
         .item-header { display: flex; align-items: flex-start; }
         .item-header input[type="checkbox"] { margin-top: 4px; margin-right: 10px; flex-shrink: 0; }
         .item-label { cursor: pointer; flex-grow: 1; }
-        .item-label .preview { color: #495057; font-size: 0.9rem; display: block; margin-top: 2px; }
-        .index-detail { display: none; margin-top: 8px; padding: 10px; background-color: #f1f3f5; border-radius: 4px; font-size: 0.9rem; white-space: pre-wrap; word-break: break-all; }
+        .item-label strong { font-size: 0.95rem; }
+        .item-label .preview { color: #495057; font-size: 0.8rem; display: block; margin-top: 2px; }
+        .index-detail { display: none; margin-top: 8px; padding: 10px; background-color: #f1f3f5; border-radius: 4px; font-size: 0.85rem; white-space: pre-wrap; word-break: break-all; }
         
-        #searchControls { display: flex; gap: 10px; margin-bottom: 15px; }
-        #searchInput { flex-grow: 1; padding: 10px; border: 1px solid #ced4da; border-radius: 5px; font-size: 1rem; }
+        /* 3.5. 검색 섹션 (모바일 - 세로 스택) */
+        #searchControls { 
+            display: flex; 
+            flex-direction: column; /* 모바일에서 세로로 쌓기 */
+            gap: 10px; 
+            margin-bottom: 15px; 
+        }
+        #searchInput { 
+            flex-grow: 1; 
+            padding: 12px; /* 터치 영역 확대 */
+            border: 1px solid #ced4da; 
+            border-radius: 5px; 
+            font-size: 1rem; 
+            width: 100%; 
+            box-sizing: border-box;
+        }
+        #searchControls button { width: 100%; }
         #searchStatus { font-weight: bold; margin-bottom: 1rem; }
-        hr { border: 0; border-top: 1px solid #e9ecef; margin: 2rem 0; }
+        hr { border: 0; border-top: 1px solid #e9ecef; margin: 1.5rem 0; }
+
+
+        /* ==================== 태블릿/데스크톱 스타일 (768px 이상) ==================== */
+        @media (min-width: 768px) {
+            body { padding: 20px; }
+            .container { padding: 25px; }
+            h1 { font-size: 2rem; } 
+            h2 { font-size: 1.75rem; } 
+            h3 { font-size: 1.5rem; }
+            
+            /* 버튼 폭 해제 및 기본 패딩 복구 */
+            button, input[type="file"]::file-selector-button {
+                width: auto;
+                padding: 10px 15px;
+            }
+            .action-buttons button { width: auto; flex: 1; }
+            .action-buttons { flex-wrap: nowrap; }
+            
+            /* 검색 컨트롤을 가로로 다시 배치 */
+            #searchControls {
+                flex-direction: row;
+            }
+            #searchInput {
+                width: auto;
+            }
+            #searchControls button { width: 150px; }
+
+            /* 인덱스 선택 컨테이너를 가로 스크롤로 복구 */
+            #selectionContainer, #searchResults { 
+                display: flex; 
+                flex-wrap: nowrap; 
+                gap: 16px; 
+                padding: 10px 0; 
+                overflow-x: auto; /* 가로 스크롤 허용 */
+            }
+            
+            /* 열 스타일 복구 */
+            .selection-column { 
+                min-width: 300px; 
+                max-width: 350px;
+                flex-shrink: 0; /* 스크롤 시 축소 방지 */
+                margin-bottom: 0;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.07); 
+            }
+            .column-content { 
+                max-height: 400px; /* 데스크톱 최대 높이 복구 */
+            }
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>JSON 인덱스 선택 추출 도구</h1>
+        <h1>JSON 인덱스 선택 추출 도구 (Selected_Chat)</h1>
 
         <section id="uploadSection">
             <h2>1. JSON 파일 업로드 (최대 3개)</h2>
             <p>※ RisuAI 채팅 파일을 여러 개 선택할 수 있습니다. (최대 3개)</p>
             <input type="file" id="fileInput" multiple accept=".json">
             <div id="uploadedFileList">현재 로드된 파일 없음</div>
-            <button id="processButton" class="btn-primary" onclick="processFiles()" disabled>추출 목록 생성 (총 <span id="fileCount">0</span>개 파일)</button>
+            <button id="processButton" class="btn-primary disabled-button" onclick="processFiles()" disabled>추출 목록 생성 (총 <span id="fileCount">0</span>개 파일)</button>
             <div id="status"></div>
         </section>
 
@@ -117,8 +237,19 @@
                     const fullObject = JSON.parse(data);
                     const dataArray = fullObject.data?.message;
                     if (!Array.isArray(dataArray)) throw new Error("JSON이 'data.message' 배열을 포함한 RisuAI 채팅 형식이 아닙니다.");
+                    
+                    // 특수 문자 클리닝 및 해시 생성
+                    dataArray.forEach(item => { 
+                        if (item && typeof item === 'object') {
+                            // JSON 오류를 유발할 수 있는 유니코드 제어 문자 제거
+                            if (item.data && typeof item.data === 'string') {
+                                item.data = item.data.replace(/[\u0000-\u001F\u007F-\u009F\u2028\u2029]/g, ' '); 
+                            }
+                            item._hash = simpleHash(JSON.stringify(item)); 
+                        }
+                    });
+                    
                     dataArray.sort((a, b) => (a.time || 0) - (b.time || 0));
-                    dataArray.forEach(item => { if (item) item._hash = simpleHash(JSON.stringify(item)); });
                     fileData.push({ name: file.name, data: dataArray });
                 } catch (error) {
                     alert(`'${file.name}' 처리 오류: ${error.message}`);
@@ -162,6 +293,7 @@
             const minLength = Math.min(...dataArrays.map(arr => arr.length));
             let unifiedLen = 0;
             for (let i = 0; i < minLength; i++) {
+                // 해시 기반으로 동일성 체크
                 if (dataArrays.slice(1).every(arr => arr[i]?._hash === dataArrays[0][i]?._hash)) unifiedLen++;
                 else break;
             }
@@ -229,11 +361,11 @@
                     </div>`;
         }
         
-        // ================== [UI 수정] 클릭 동작 분리를 위해 label을 div로 변경 ==================
         function createIndexItemHtml(type, itemIndex, fileIndex, item, columnId) {
             const index = itemIndex + 1;
             const content = (item.data || '').trim().replace(/\n/g, ' ').substring(0, 40) + '...';
             const fullContent = `Role: ${item.role || 'N/A'}\nData:\n${item.data || '[내용 없음]'}`;
+            // 체크박스 ID와 label을 연결하지 않고, label 역할을 하는 div에 클릭 이벤트를 부여
             return `<div class="index-item">
                         <div class="item-header">
                             <input type="checkbox" id="check-${fileIndex}-${itemIndex}" data-type="${type}" data-item-index="${itemIndex}" data-file-index="${fileIndex}" data-column-id="${columnId}">
@@ -245,7 +377,6 @@
                         <div class="index-detail">${fullContent.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
                     </div>`;
         }
-        // =====================================================================================
 
         function toggleAllDetails(containerId, shouldExpand) {
             const container = document.getElementById(containerId);
@@ -302,10 +433,10 @@
 
                 if (totalMatches > 0) {
                     statusDiv.innerHTML = `✅ 총 ${totalMatches}개의 검색 결과를 발견했습니다.
-                                         <div class="action-buttons">
-                                             <button class="btn-secondary" onclick="toggleAllDetails('searchResults', true)">전체 인덱스 펼치기</button>
-                                             <button class="btn-secondary" onclick="toggleAllDetails('searchResults', false)">전체 인덱스 접기</button>
-                                         </div>`;
+                                            <div class="action-buttons">
+                                                <button class="btn-secondary" onclick="toggleAllDetails('searchResults', true)">전체 인덱스 펼치기</button>
+                                                <button class="btn-secondary" onclick="toggleAllDetails('searchResults', false)">전체 인덱스 접기</button>
+                                            </div>`;
                     
                     let finalHtml = '';
                     searchResultsData.forEach((group) => {
@@ -328,30 +459,54 @@
             allSelected.forEach(checkbox => {
                 const { fileIndex, itemIndex } = checkbox.dataset;
                 const item = fileData[parseInt(fileIndex)]?.data[parseInt(itemIndex)];
+                
                 if (item && !hashSet.has(item._hash)) {
+                    // 특수 문자는 이미 파일 로드 시 클리닝 되었음.
                     const finalItem = { ...item };
                     delete finalItem._hash;
                     extractedData.push(finalItem);
                     hashSet.add(item._hash);
                 }
             });
+            
             if (extractedData.length === 0) { alert('유효한 추출 항목이 없습니다.'); return; }
+            
             extractedData.sort((a, b) => (a.time || 0) - (b.time || 0));
-            const finalOutputObject = { type: "risuChat", ver: 2, data: { message: extractedData, note: "", name: "Extracted Chat", localLore: [], fmIndex: -1, id: `extracted-${Date.now()}`, scriptstate: {}, lastMemory: "NewChat" }, folders: [] };
+            
+            // 최종 출력 객체 생성 (RisuAI 형식)
+            const finalOutputObject = { 
+                type: "risuChat", 
+                ver: 2, 
+                data: { 
+                    message: extractedData, 
+                    note: "Extracted by JSON Index Selector (Selected_Chat)", 
+                    name: "Selected_Chat_Export", 
+                    localLore: [], 
+                    fmIndex: -1, 
+                    id: `extracted-${Date.now()}`, 
+                    scriptstate: {}, 
+                    lastMemory: "NewChat" 
+                }, 
+                folders: [] 
+            };
+            
             try {
                 const jsonContent = JSON.stringify(finalOutputObject, null, 2);
-                const blob = new Blob([jsonContent], { type: 'application/json' });
+                
+                // Blob에 인코딩 명시 및 파일 생성
+                const blob = new Blob([jsonContent], { type: 'application/json;charset=utf-8' }); 
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = 'extracted_ai_chat.json';
+                a.download = 'Selected_Chat_Export.json'; // 파일 이름 최종 확정
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
                 URL.revokeObjectURL(url);
-                alert(`✅ ${extractedData.length}개 항목이 포함된 파일이 다운로드되었습니다.`);
+                
+                alert(`✅ ${extractedData.length}개 항목이 포함된 'Selected_Chat_Export.json' 파일이 다운로드되었습니다.`);
             } catch (e) {
-                alert(`⚠️ 다운로드 오류: ${e.message}`);
+                alert(`⚠️ 다운로드 오류: ${e.name}: ${e.message}\n선택된 데이터 내부의 오류일 수 있습니다. 선택 범위를 좁혀 다시 시도해보세요.`);
             }
         }
     </script>
